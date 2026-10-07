@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CalcInk</string>
+    <string name="title_activity_main">CalcInk</string>
+    <string name="package_name">com.calcink.app</string>
+    <string name="custom_url_scheme">com.calcink.app</string>
+</resources>
