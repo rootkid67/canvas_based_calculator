@@ -1,0 +1,177 @@
+CALCINK MODEL SELECTION AND TECHNICAL JUSTIFICATION
+==================================================
+
+Decision
+--------
+CalcInk currently uses the INT8-quantized CoMER encoder and decoder distributed
+for browser inference by the ink-on project. The implementation is wired through
+ink-on's ONNX Runtime Web engine, with WASM execution, beam width 4, and its
+restricted "number" recognition mode. The model and vocabulary are loaded from
+the app's local public/models directory in a Web Worker.
+
+This is a deployment-oriented choice for a small, offline-capable arithmetic
+handwriting app. It is not a claim that this model is the most accurate available
+model, or that this repository has completed a comparative benchmark.
+
+Why this model fits the application
+-----------------------------------
+
+1. Task fit
+   CoMER is designed for handwritten mathematical expression recognition. Its
+   encoder-decoder predicts a structured symbol sequence from the two-dimensional
+   layout of an expression. This is a closer match than general-purpose text OCR,
+   which does not inherently model superscripts, fractions, or spatial math
+   relationships. CalcInk currently restricts recognition to digits and basic
+   arithmetic symbols, so it uses the recognizer's number mode to narrow the
+   decoder's output space.
+
+2. Shipped model size
+   The exact files in this checkout have these byte sizes:
+
+       encoder_int8.onnx   3,460,779 bytes  (about 3.30 MiB)
+       decoder_int8.onnx   4,118,047 bytes  (about 3.93 MiB)
+       vocab.json              3,697 bytes
+       ---------------------------------------------------
+       model weights total  7,578,826 bytes  (about 7.23 MiB)
+
+   The upstream ink-on project describes the pair as a 7.2 MB INT8 model and
+   estimates its FP32 counterpart at about 100 MB. This makes the quantized pair
+   a much more practical fit for app packaging and first-use transfer than the
+   full-precision checkpoint. These figures cover model weights and vocabulary,
+   not the ONNX Runtime WASM binary or the complete installed app.
+
+3. Runtime and responsiveness
+   CalcInk runs inference in a Web Worker, so model execution does not occupy the
+   UI thread used for pointer input and canvas rendering. The worker initializes
+   the model and vocabulary lazily, then reuses the initialized engine for later
+   requests. The upstream ink-on README reports roughly 1–2 seconds for
+   recognition and dynamic input width that can reduce work on short expressions.
+   Those are upstream-reported figures, not measurements taken on CalcInk's
+   supported devices. CalcInk displays the measured duration for each inference,
+   but this repository does not yet contain a representative latency benchmark.
+
+4. Accuracy evidence and its limits
+   The CoMER paper reports expression recognition rates (ExpRate) of 59.33%,
+   59.81%, and 62.97% on CROHME 2014, 2016, and 2019, respectively, for its
+   reported model and evaluation setup. The ink-on README reports 36.41% ExpRate
+   for its INT8 pipeline on the CROHME 2014 test set of 986 expressions, with
+   53.25% at one or fewer edits and 65.82% at two or fewer edits. Its table lists
+   59.33% for the CoMER paper FP32 result as a reference.
+
+   The gap is material. The ink-on authors attribute it to a combination of
+   quantization, preprocessing differences, and vocabulary restriction; it must
+   not be described as a quantization-only effect. The published figures also
+   do not establish CalcInk's real-world accuracy: user handwriting, canvas
+   capture, preprocessing, vocabulary masking, and CalcInk's beam width differ
+   from some details in the upstream benchmark. The upstream INT8 number uses
+   beam width 3, while this app configures beam width 4. A controlled benchmark
+   on the same held-out expressions and target devices is needed for a direct
+   quality/speed comparison.
+
+Alternatives considered
+-----------------------
+
+A. CoMER FP32
+   Advantage: highest documented accuracy among the directly comparable CoMER
+   figures above: 59.33% ExpRate on CROHME 2014 in the paper. Full precision may
+   avoid some quantization loss.
+   Cost: the upstream project estimates roughly 100 MB for the FP32 weights,
+   versus 7.2 MB for the shipped INT8 weights. This is a substantial increase in
+   model payload and memory pressure for a browser/mobile app. No FP32 ONNX
+   artifact is configured or measured in this repository.
+   Decision: retain as an accuracy-oriented benchmark candidate, not the default
+   package, until a target-device evaluation shows the benefit justifies the
+   added footprint.
+
+B. BTTR (Bidirectionally Trained Transformer)
+   Advantage: a published HMER alternative with a transformer decoder and
+   bidirectional language-model training. Its paper reports improvements over
+   methods without data augmentation on CROHME 2014/2016/2019.
+   Cost: the official implementation is a PyTorch training/inference project; its
+   README describes a Python/PyTorch setup and multi-GPU training. This repository
+   has no BTTR ONNX export, quantized browser weights, or integration path, so
+   adopting it would add conversion and validation work. No same-device size,
+   latency, or accuracy measurement was made here.
+   Decision: a reasonable research comparison, but not a drop-in replacement for
+   the currently packaged browser model.
+
+C. Remote OCR or a hosted vision-language model
+   Advantage: could provide a larger model or server-side hardware without
+   downloading all weights to the client.
+   Cost: requires network access, introduces service/privacy considerations,
+   and conflicts with CalcInk's local-recognition design. No provider was
+   integrated or benchmarked.
+   Decision: rejected for this product's local/offline recognition requirement.
+
+D. General text OCR or a hand-built symbol classifier
+   Advantage: potentially smaller for isolated, linear text or individual
+   symbols.
+   Cost: general OCR does not directly solve two-dimensional mathematical
+   structure; an isolated-symbol classifier would require separate segmentation
+   and layout reconstruction. No such pipeline exists in this repository.
+   Decision: not selected for whole-expression handwriting input.
+
+Evaluation status and next steps
+-------------------------------
+The choice is supported by task fit, the checked-in INT8 file sizes, the
+upstream project's published benchmark, and the requirement to run recognition
+locally. The alternatives above were assessed from their published approaches
+and integration requirements; they were not all executed in an apples-to-apples
+benchmark. Do not present this decision as a completed comparative performance
+study.
+
+To complete a defensible model evaluation:
+  1. Build a held-out test set representative of CalcInk's target users and
+     canvas capture conditions; do not tune on the test set.
+  2. Run the exact CalcInk preprocessing and recognition path against FP32 CoMER,
+     the shipped INT8 CoMER, and any candidate with a viable browser/mobile
+     runtime artifact.
+  3. Record exact-match ExpRate, normalized edit distance, symbol/operator
+     confusion, division-by-zero/evaluation outcomes, first-run load time,
+     warm median and p95 latency, peak memory, and package size.
+  4. Run on named low-, mid-, and high-tier target devices. Record browser/OS,
+     WASM threading availability, beam width, and whether the timing includes
+     model initialization.
+5. Verify the source and redistribution terms for the exact model-weight files
+   in public/models before publishing a distributable build. The runtime
+   library's license alone does not establish the weights' license.
+
+License attribution status
+--------------------------
+The upstream ink-on repository identifies its library source as Apache-2.0 and
+publishes the INT8 CoMER artifacts through its release page. That source-code
+license must not be assumed to cover the separately downloadable model weights:
+the release documentation does not state a distinct weight-file license. Treat
+the current attribution as incomplete for redistribution until the maintainer
+or release metadata confirms the terms for these exact encoder and decoder
+files.
+
+Implementation references
+-------------------------
+  src/recognizer.worker.ts  Model URLs, stroke preprocessing, WASM provider, beam width, number mode
+  src/strokePipeline.ts     Canvas-to-model stroke conversion and tensor prep
+  src/recognizer.ts         Worker requests, answer flow
+  public/models/               Checked-in ONNX weights and vocabulary
+  package.json                 ink-on and ONNX Runtime Web dependencies
+
+Sources
+-------
+1. CoMER paper, ECCV 2022, including CROHME ExpRate results and model design:
+   https://www.ecva.net/papers/eccv_2022/papers_ECCV/papers/136880389.pdf
+
+2. CoMER official implementation:
+   https://github.com/Green-Wood/CoMER
+
+3. ink-on implementation and its INT8 size, benchmark, and runtime claims:
+   https://github.com/kimseungdae/ink-on
+
+   v0.1.0 model release:
+   https://github.com/kimseungdae/ink-on/releases/tag/v0.1.0
+
+4. BTTR paper, arXiv:2105.02412:
+   https://arxiv.org/abs/2105.02412
+
+5. BTTR official implementation and setup:
+   https://github.com/Green-Wood/BTTR
+
+Repository inspection date: 2026-10-07.
