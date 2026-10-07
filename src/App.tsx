@@ -634,7 +634,9 @@ function App() {
               {calculationAnswer && <div className={`canvas-answer${calculationAnswer === 'undefined' ? ' undefined' : ''}`} style={{ left: answerPosition.left, top: answerPosition.top, fontSize: answerFontSize }} aria-label={`Result: ${calculationAnswer}`}>
                 {calculationAnswer}
               </div>}
-              <span className="visually-hidden" aria-live="polite">{recognitionMessage}</span>
+              <div className={`recognition-feedback${recognitionBusy ? ' is-processing' : ''}`} role="status" aria-live="polite">
+                {recognitionMessage}
+              </div>
               
               {/* Floating Toolbar */}
               <div className="floating-toolbar">
@@ -701,6 +703,9 @@ function App() {
                 <div className="toolbar-divider" />
                 
                 <div className="toolbar-section">
+                  <button className="floating-tool-btn recognize-btn" onClick={() => void recognizeExpression()} disabled={recognitionBusy} title="Recognize expression" aria-label="Recognize expression">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v5h5"/><path d="M5.6 15a7 7 0 1 0 1.1-8.2L4 9"/><path d="M12 8v4l2.5 1.5"/></svg>
+                  </button>
                   <button className="floating-tool-btn" onClick={clearCanvas} title="Clear All">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                   </button>
