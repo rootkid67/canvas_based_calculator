@@ -507,15 +507,13 @@ function App() {
         if (!sameSolvedExpression && canvas && Number.isFinite(top)) {
           const bounds = canvas.getBoundingClientRect()
           const fontSize = Math.max(48, Math.min((bottom - top) * 1.25, bounds.height * 0.42))
-          const answerWidth = result.answer.length * fontSize * 0.62
           const rightPosition = right + 18
-          const fitsBesideExpression = rightPosition + answerWidth <= bounds.width - 12
           setAnswerFontSize(fontSize)
           setAnswerPosition({
-            left: fitsBesideExpression ? rightPosition : Math.max(12, bounds.width - answerWidth - 12),
-            top: fitsBesideExpression
-              ? Math.max(12, (top + bottom) / 2 - fontSize * 0.4)
-              : Math.min(bottom + 12, bounds.height - fontSize - 12),
+            // Keep the answer after the handwritten equals sign even when it
+            // extends past the right edge of the canvas.
+            left: rightPosition,
+            top: Math.max(12, (top + bottom) / 2 - fontSize * 0.4),
           })
         }
         setCalculationAnswer(result.answer)
