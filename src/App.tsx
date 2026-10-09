@@ -632,9 +632,9 @@ function App() {
               {calculationAnswer && <div className={`canvas-answer${calculationAnswer === 'undefined' ? ' undefined' : ''}`} style={{ left: answerPosition.left, top: answerPosition.top, fontSize: answerFontSize }} aria-label={`Result: ${calculationAnswer}`}>
                 {calculationAnswer}
               </div>}
-              <div className={`recognition-feedback${recognitionBusy ? ' is-processing' : ''}`} role="status" aria-live="polite">
+              {recognitionMessage !== 'Write an expression on the canvas. Recognition will appear here.' && <div className={`recognition-feedback${recognitionBusy ? ' is-processing' : ''}`} role="status" aria-live="polite">
                 {recognitionMessage}
-              </div>
+              </div>}
               
               {/* Floating Toolbar */}
               <div className="floating-toolbar">

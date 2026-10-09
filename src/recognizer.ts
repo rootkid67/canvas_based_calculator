@@ -67,7 +67,7 @@ export async function recognizeCanvasStrokes(canvasStrokes: CanvasStrokeForRecog
   const result = await runInference(canvasStrokes)
   const latex = formatCalculatorInput(result.latex)
   const hasEquals = latex.includes('=')
-  const evaluatedAnswer = evaluateCalculatorInput(latex)
-  const answer = evaluatedAnswer ?? (hasEquals ? 'undefined' : undefined)
+  const evaluatedAnswer = hasEquals ? evaluateCalculatorInput(latex) : undefined
+  const answer = hasEquals ? evaluatedAnswer ?? 'undefined' : undefined
   return { ...result, latex, answer, hasEquals }
 }
